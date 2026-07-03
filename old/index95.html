@@ -1403,10 +1403,17 @@ function openPD(id){
     return '<div class="pd-gallery-thumb'+(i===0?' on':'')+'" onclick="pdSetImg(this,\''+src.replace(/'/g,"\\'")+'\')"><img src="'+src+'"></div>';
   }).join('')+'</div>':'';
 
-  const _shareUrl='https://us-central1-thai-accounting-d3e6b.cloudfunctions.net/share?pid='+encodeURIComponent(p.id);
+  const _shareUrl='https://shop.racinggarage.net/#pd='+p.id;
+  const _shareImg=galleryImgs[0]||p.imageUrl||'';
   const _shareTitle=p.name+' - Racing Garage';
   const _sharePrice=p.price?p.price.toLocaleString('th-TH')+' บาท':'';
-  const _fbFeedUrl='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(_shareUrl);
+  const _fbFeedUrl='https://www.facebook.com/dialog/feed'
+    +'?app_id=1318063607204811'
+    +'&link='+encodeURIComponent(_shareUrl)
+    +'&picture='+encodeURIComponent(_shareImg)
+    +'&name='+encodeURIComponent(_shareTitle)
+    +'&description='+encodeURIComponent(_sharePrice+' | Racing Garage อุปกรณ์มอเตอร์สปอร์ตแท้ 100%')
+    +'&redirect_uri='+encodeURIComponent('https://shop.racinggarage.net/');
   const _lineUrl='https://social-plugins.line.me/lineit/share?url='+encodeURIComponent(_shareUrl)+'&text='+encodeURIComponent(_shareTitle+' ราคา '+_sharePrice+'\n'+_shareUrl);
   const shareHtml='<div style="display:flex;gap:8px;margin:10px 0 4px">'
     +'<a href="'+_fbFeedUrl+'" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:#1877f2;color:#fff;border-radius:6px;text-decoration:none;font-size:13px;font-weight:600">'
