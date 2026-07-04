@@ -1467,7 +1467,7 @@ function openPD(id){
     document.getElementById('og-title').setAttribute('content',p.name+' - Racing Garage');
     document.getElementById('og-desc').setAttribute('content',(p.description||p.name).slice(0,200));
     if(_img)document.getElementById('og-image').setAttribute('content',_img);
-    document.getElementById('og-url').setAttribute('content','https://shop.racinggarage.net/#pid='+p.id);
+    document.getElementById('og-url').setAttribute('content','https://shop.racinggarage.net/#pd='+p.id);
   }catch(e){}
 }
 function closePD(fromPop){$('pdpage').classList.remove('show');document.body.style.overflow='';_dpid='';saveState();if(!fromPop&&history.state&&history.state.pdOpen)history.back();}
