@@ -968,7 +968,6 @@ function saveState(){
   const hash=params.toString();
   history.replaceState(null,'',hash?'#'+hash:'#');
 }
-(function(){try{const q=new URLSearchParams(location.search);const pid=q.get('pid');if(pid){history.replaceState(null,'',location.pathname+'#pid='+encodeURIComponent(pid));}}catch(e){}})();
 function restoreState(){
   const hash=location.hash.replace('#','');
   if(!hash) return;
