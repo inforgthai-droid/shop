@@ -1137,7 +1137,6 @@ function doFilter(resetPage=true){
   const q=($('sinput')?.value||'').toLowerCase();
   const srt=$('srt')?.value||'az';
   let list=PRODS.filter(p=>{
-    if(p.visible===false)return false;
     if(CAT!=='all'&&p.category!==CAT)return false;
     if(q&&!(p.name+p.code+(p.description||'')+(p.category||'')).toLowerCase().includes(q))return false;
     if(BRAND_FILTER){if((p.brand||'')!==BRAND_FILTER)return false;}
