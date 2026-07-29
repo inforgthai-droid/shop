@@ -1777,6 +1777,7 @@ async function openCreditPayment(){
     await batch.commit();
     CART.forEach(item=>{const p=PRODS.find(x=>x.id===item.id);if(p)p.stock-=item.qty;});
     window._lastCart=[...CART];CART.length=0;updateCart();doFilter();
+    sendOrderEmails(orderData);
   }catch(e){toast('Error saving order: '+e.message,'err');return;}
   // Build pay.sn URL with pre-filled customer data
   const params=new URLSearchParams({
@@ -1820,6 +1821,39 @@ function creditPayDone(){
   O.step=4;renderSuccess(grand);
 }
 
+// ===== EMAIL NOTIFICATION (Google Apps Script relay) =====
+// ดูวิธีติดตั้งใน EMAIL_APPS_SCRIPT.gs — deploy แล้วเอา Web app URL มาใส่ตรงนี้
+const MAIL_API    = 'https://script.google.com/macros/s/AKfycbyV4ZDjJBwfnSloVMLEAmrHs7Iw9mastc1cxnL9ntlGAjqPP0Z9x1JAP94c4EObdRoh/exec';
+const MAIL_SECRET = 'RG2026';  // ต้องตรงกับ SECRET ใน Apps Script
+
+// ส่ง email ทั้งร้าน + ลูกค้า ในการเรียกครั้งเดียว
+// ใช้ no-cors + text/plain เพื่อเลี่ยง CORS preflight ของ Apps Script
+function sendOrderEmails(orderData){
+  if(!MAIL_API) { console.warn('MAIL_API ยังไม่ได้ตั้งค่า — ข้ามการส่ง email'); return; }
+  const payload={
+    secret          : MAIL_SECRET,
+    orderNo         : orderData.orderNo||'',
+    date            : orderData.date||'',
+    customerName    : orderData.customerName||'',
+    customerPhone   : orderData.customerPhone||'',
+    customerEmail   : orderData.customerEmail||'',
+    customerAddress : orderData.customerAddress||'',
+    payMethod       : orderData.payMethod||'',
+    note            : orderData.note||'',
+    items           : (orderData.items||[]).map(i=>({name:i.name,qty:i.qty,price:i.price,subtotal:i.subtotal||i.price*i.qty})),
+    subtotal        : orderData.subtotal||0,
+    vat             : orderData.vat||0,
+    total           : orderData.total||0,
+  };
+  fetch(MAIL_API,{
+    method  : 'POST',
+    mode    : 'no-cors',
+    headers : {'Content-Type':'text/plain;charset=utf-8'},
+    body    : JSON.stringify(payload)
+  }).then(()=>console.log('📧 ส่งคำขอ email แล้ว'))
+    .catch(e=>console.warn('email relay error:',e));
+}
+
 async function confirmPay(){
   clearTimer();
   const{sub,vat,grand}=cartTotals();
@@ -1834,6 +1868,7 @@ async function confirmPay(){
     await batch.commit();
     CART.forEach(item=>{const p=PRODS.find(x=>x.id===item.id);if(p)p.stock-=item.qty;});
     window._lastCart=[...CART];CART.length=0;updateCart();doFilter();O.step=4;renderSuccess(grand);
+    sendOrderEmails(orderData);
   }catch(e){toast('Error: '+e.message,'err');}
 }
 
