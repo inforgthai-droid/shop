@@ -159,6 +159,7 @@ body{font-family:var(--thai);background:var(--bg);color:var(--text);min-height:1
 
 /* PROD GRID */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1px}
+@media(max-width:480px){.pgrid{grid-template-columns:repeat(4,1fr)}}
 .pagination{display:flex;justify-content:center;align-items:center;gap:6px;padding:24px 12px;flex-wrap:wrap}
 .page-btn{min-width:36px;height:36px;padding:0 10px;border:1px solid #2a2a2a;background:#111;color:#ccc;border-radius:4px;cursor:pointer;font-size:14px;font-weight:600}
 .page-btn:hover:not(:disabled){border-color:var(--red);color:var(--red)}
