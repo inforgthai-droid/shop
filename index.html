@@ -159,7 +159,18 @@ body{font-family:var(--thai);background:var(--bg);color:var(--text);min-height:1
 
 /* PROD GRID */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1px}
-@media(max-width:480px){.pgrid{grid-template-columns:repeat(4,1fr)}}
+@media(max-width:480px){
+  .pgrid{grid-template-columns:repeat(4,1fr);gap:0}
+  .pcard-body{padding:4px 3px}
+  .pcard-brand{font-size:8px;margin-bottom:1px}
+  .pcard-name{font-size:9px;-webkit-line-clamp:2}
+  .pcard-cat-tag{display:none}
+  .pcard-foot{margin-top:4px;padding-top:4px;gap:2px}
+  .pcard-price{font-size:12px}
+  .pcard-stock{font-size:8px}
+  .pcard-plus{width:22px;height:22px;font-size:14px}
+  .pcard-badge{font-size:8px;padding:2px 5px}
+}
 .pagination{display:flex;justify-content:center;align-items:center;gap:6px;padding:24px 12px;flex-wrap:wrap}
 .page-btn{min-width:36px;height:36px;padding:0 10px;border:1px solid #2a2a2a;background:#111;color:#ccc;border-radius:4px;cursor:pointer;font-size:14px;font-weight:600}
 .page-btn:hover:not(:disabled){border-color:var(--red);color:var(--red)}
