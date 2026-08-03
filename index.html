@@ -159,8 +159,9 @@ body{font-family:var(--thai);background:var(--bg);color:var(--text);min-height:1
 
 /* PROD GRID */
 .pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1px}
-@media(max-width:480px){
-  .pgrid{grid-template-columns:repeat(3,1fr);gap:0}
+@media(max-width:768px){
+  .pgrid{grid-template-columns:repeat(3,1fr)!important;gap:0}
+  .pcard-img-wrap{aspect-ratio:1!important;width:100%}
   .pcard-body{padding:5px 4px}
   .pcard-brand{font-size:9px;margin-bottom:1px}
   .pcard-name{font-size:10px;-webkit-line-clamp:2}
