@@ -912,7 +912,7 @@ function applyBrand(){
   $('ft-addr').innerHTML=(c.address||'')+(c.tel?'<br>Tel: '+c.tel:'');
   $('ft-copy').textContent='© '+new Date().getFullYear()+' '+(c.name||'Racing Garage');
   $('ft-legal').textContent='© '+new Date().getFullYear()+' '+(c.name||'Racing Garage')+'. All rights reserved.';
-  const cats=[...new Set(PRODS.map(p=>p.category).filter(Boolean))].slice(0,6);
+  const cats=[...new Set(PRODS.map(p=>p.category).filter(Boolean))].slice(0,12);
   $('ft-cats').innerHTML=cats.map(c=>`<a href="#" onclick="setcat('${c}',null);return false">${c}</a>`).join('');
 }
 
@@ -932,7 +932,7 @@ function buildCatHeroGrid(){
   if(wrap) wrap.style.display=enabled?'':'none';
   if(!enabled) return;
   const heroImgs=SD.catHeroImages||{};
-  const cats=CATS.length?CATS.slice(0,6):[...new Set(PRODS.map(p=>p.category).filter(Boolean))].slice(0,6).map(n=>({name:n,icon:CAT_ICONS[n]||'📦',color:'#e11d48',image:''}));
+  const cats=CATS.length?CATS.slice(0,12):[...new Set(PRODS.map(p=>p.category).filter(Boolean))].slice(0,12).map(n=>({name:n,icon:CAT_ICONS[n]||'📦',color:'#e11d48',image:''}));
   grid.innerHTML=cats.map(c=>{
     const count=PRODS.filter(p=>p.category===c.name&&p.stock>0).length;
     // ใช้รูปจาก catHeroImages ก่อน แล้วค่อย fallback ไป c.image
