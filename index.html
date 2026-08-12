@@ -637,7 +637,30 @@ const fts=()=>firebase.firestore.FieldValue.serverTimestamp(),inc=n=>firebase.fi
 (async()=>{try{const today=new Date().toISOString().slice(0,10);await db.collection("pageviews").doc("shop").set({total:firebase.firestore.FieldValue.increment(1),[today]:firebase.firestore.FieldValue.increment(1),lastVisit:fts()},{merge:true});}catch(e){}})();
 
 // ── COUPON ──
-let COUPON={code:'',info:null}; // info = {valid,discount,docId,expireDate} or {valid:false,msg}
+let COUPON={code:'',info:null};
+function _genCouponCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let r='';for(let i=0;i<5;i++)r+=chars[Math.floor(Math.random()*chars.length)];
+  return'RG5-'+r;
+}
+async function createReceiptCoupon(saleId,saleDate){
+  let code=_genCouponCode();
+  for(let i=0;i<5;i++){
+    const ex=await db.collection('discountCodes').where('code','==',code).limit(1).get();
+    if(ex.empty)break;
+    code=_genCouponCode();
+  }
+  const expDate=new Date(saleDate);
+  expDate.setMonth(expDate.getMonth()+1);
+  const expISO=expDate.toISOString().split('T')[0];
+  await db.collection('discountCodes').add({
+    code,discount:5,used:false,
+    expireDate:expISO,
+    createdFromSale:saleId,
+    createdAt:fts()
+  });
+  return{code,expireDate:expISO};
+} // info = {valid,discount,docId,expireDate} or {valid:false,msg}
 async function validateCoupon(code){
   if(!code)return null;
   const snap=await db.collection('discountCodes').where('code','==',code.trim().toUpperCase()).limit(1).get();
@@ -1831,8 +1854,11 @@ function previewSlip(inp){if(!inp.files[0])return;const r=new FileReader();r.onl
 async function openCreditPayment(){
   const{sub,vat,grand,couponAmt}=cartTotals();
   const itemDesc=CART.map(x=>x.name+(x.qty>1?' x'+x.qty:'')).join(', ');
+  let nextCoupon={code:'',expireDate:''};
+  try{nextCoupon=await createReceiptCoupon(_docNo,todayISO());}catch(e){console.warn('next coupon warn:',e);}
   const orderData={orderNo:_docNo,date:todayISO(),customerName:O.name,customerPhone:O.phone,customerEmail:O.email||shopUser?.email||'',customerUid:shopUser?.uid||'',customerAddress:O.addr,note:O.note,payMethod:'credit',slipBase64:'',lang:LANG,
     couponCode:COUPON.info?.valid?COUPON.info.code:null,couponDiscount:couponAmt||null,
+    nextCouponCode:nextCoupon.code||null,nextCouponExpiry:nextCoupon.expireDate||null,
     items:CART.map(x=>({id:x.id,code:x.code,name:x.name,unit:x.unit,price:x.price,qty:x.qty,subtotal:x.price*x.qty,cost:(PRODS.find(p=>p.id===x.id)||{}).cost||0})),totalCost:CART.reduce((a,x)=>a+x.qty*(((PRODS.find(p=>p.id===x.id)||{}).cost)||0),0),subtotal:sub,vat,total:grand,status:'รอชำระบัตร'};
   try{
     const batch=db.batch();
@@ -1927,8 +1953,12 @@ async function confirmPay(){
   const{sub,vat,grand,couponAmt}=cartTotals();
   let slipB64='';
   if(O.pay==='transfer'){const f=$('slipf')?.files[0];if(f)try{slipB64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.slice(0,50000));r.onerror=rej;r.readAsDataURL(f);});}catch{}}
+  // สร้างโค้ดสำหรับการซื้อครั้งถัดไป
+  let nextCoupon={code:'',expireDate:''};
+  try{nextCoupon=await createReceiptCoupon(_docNo,todayISO());}catch(e){console.warn('next coupon warn:',e);}
   const orderData={orderNo:_docNo,date:todayISO(),customerName:O.name,customerPhone:O.phone,customerEmail:O.email||shopUser?.email||'',customerUid:shopUser?.uid||'',customerAddress:O.addr,note:O.note,payMethod:O.pay,slipBase64:slipB64,lang:LANG,
     couponCode:COUPON.info?.valid?COUPON.info.code:null,couponDiscount:couponAmt||null,
+    nextCouponCode:nextCoupon.code||null,nextCouponExpiry:nextCoupon.expireDate||null,
     items:CART.map(x=>({id:x.id,code:x.code,name:x.name,unit:x.unit,price:x.price,qty:x.qty,subtotal:x.price*x.qty,cost:(PRODS.find(p=>p.id===x.id)||{}).cost||0})),totalCost:CART.reduce((a,x)=>a+x.qty*(((PRODS.find(p=>p.id===x.id)||{}).cost)||0),0),subtotal:sub,vat,total:grand,status:'รอยืนยัน'};
   try{
     const batch=db.batch();
