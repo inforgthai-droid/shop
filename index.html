@@ -395,6 +395,17 @@ footer{background:#000;border-top:3px solid var(--red);margin-top:3rem;padding:2
   </div>
   <div class="cart-ft">
     <div class="cart-row"><span id="ct-sub-l">Subtotal</span><span id="cf-sub">0</span></div>
+    <div id="coupon-disc-row" class="cart-row" style="display:none;color:#4ade80"><span>Discount</span><span id="cf-coupon"></span></div>
+    <div id="coupon-row" style="margin:6px 0">
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="coupon-input" type="text" placeholder="Coupon code" maxlength="10"
+          style="flex:1;background:#111;border:1px solid #333;color:#fff;border-radius:6px;padding:7px 10px;font-size:13px;font-family:var(--font);text-transform:uppercase;letter-spacing:1px"
+          onkeydown="if(event.key==='Enter')applyCoupon()">
+        <button id="coupon-btn" onclick="applyCoupon()"
+          style="background:#c00;color:#fff;border:none;border-radius:6px;padding:7px 14px;font-size:12px;font-family:var(--font);cursor:pointer;letter-spacing:.5px;white-space:nowrap">USE</button>
+      </div>
+      <div id="coupon-msg" style="font-size:11px;margin-top:4px;min-height:16px;font-family:var(--font)"></div>
+    </div>
     <div class="cart-total"><span id="ct-total-l">Total</span><span id="cf-total">0</span></div>
     <button class="chk-btn" id="chk-btn" onclick="openCheckout()" disabled>Pay Now →</button>
   </div>
@@ -624,6 +635,31 @@ const db=firebase.firestore(),auth=firebase.auth(),gp=new firebase.auth.GoogleAu
 const fts=()=>firebase.firestore.FieldValue.serverTimestamp(),inc=n=>firebase.firestore.FieldValue.increment(n);
 // Track pageview
 (async()=>{try{const today=new Date().toISOString().slice(0,10);await db.collection("pageviews").doc("shop").set({total:firebase.firestore.FieldValue.increment(1),[today]:firebase.firestore.FieldValue.increment(1),lastVisit:fts()},{merge:true});}catch(e){}})();
+
+// ── COUPON ──
+let COUPON={code:'',info:null}; // info = {valid,discount,docId,expireDate} or {valid:false,msg}
+async function validateCoupon(code){
+  if(!code)return null;
+  const snap=await db.collection('discountCodes').where('code','==',code.trim().toUpperCase()).limit(1).get();
+  if(snap.empty)return{valid:false,msg:'ไม่พบโค้ดนี้'};
+  const d=snap.docs[0];const dat=d.data();
+  if(dat.used)return{valid:false,msg:'โค้ดนี้ถูกใช้แล้ว'};
+  const today=new Date().toISOString().split('T')[0];
+  if(dat.expireDate&&dat.expireDate<today)return{valid:false,msg:'โค้ดหมดอายุแล้ว ('+dat.expireDate+')'};
+  return{valid:true,discount:dat.discount||5,docId:d.id,code:dat.code,expireDate:dat.expireDate};
+}
+async function applyCoupon(){
+  const inp=document.getElementById('coupon-input');
+  const code=(inp?.value||'').trim().toUpperCase();
+  if(!code)return;
+  COUPON.code=code;
+  const btn=document.getElementById('coupon-btn');
+  if(btn)btn.textContent='...';
+  const result=await validateCoupon(code);
+  COUPON.info=result;
+  updateCart();
+}
+function removeCoupon(){COUPON={code:'',info:null};updateCart();}
 
 // ── STATE ──
 let PRODS=[],BRANDS=[],CO={name:'Racing Garage',vatRate:7,tel:'',address:'',email:'',promptpay:'',bankName:'',bankAccount:'',bankAccountName:'',receiptFooter:'ขอบคุณที่ใช้บริการ'},
@@ -1610,14 +1646,27 @@ function cqty(id,d){
 function cremove(id){CART.splice(CART.findIndex(x=>x.id===id),1);updateCart();}
 function cartTotals(){
   const sub=CART.reduce((a,b)=>a+b.price*b.qty,0),vat=0;
-  return{sub,vat,grand:sub,cnt:CART.reduce((a,b)=>a+b.qty,0)};
+  const couponAmt=COUPON.info?.valid?Math.round(sub*(COUPON.info.discount||5)/100):0;
+  return{sub,vat,couponAmt,grand:sub-couponAmt,cnt:CART.reduce((a,b)=>a+b.qty,0)};
 }
 function updateCart(){
-  const{sub,vat,grand,cnt}=cartTotals();
+  const{sub,vat,grand,cnt,couponAmt}=cartTotals();
   $('ccnt').textContent=cnt;if($('ccnt2'))$('ccnt2').textContent=cnt;
   $('cart-title').textContent=t('cart')+' ('+cnt+')';
   $('cf-sub').textContent=fmt(sub);$('cf-total').textContent=fmt(grand);
   $('chk-btn').disabled=CART.length===0;
+  // coupon UI
+  const cpRow=$('coupon-row');
+  const cpDisc=$('coupon-disc-row');
+  const cpInp=$('coupon-input');
+  const cpMsg=$('coupon-msg');
+  if(cpInp&&COUPON.code&&!COUPON.info)cpInp.value=COUPON.code;
+  if(cpDisc){cpDisc.style.display=couponAmt>0?'flex':'none';const el=$('cf-coupon');if(el)el.textContent='-'+fmt(couponAmt);}
+  if(cpMsg){
+    if(COUPON.info?.valid){cpMsg.textContent='✓ ส่วนลด '+COUPON.info.discount+'%';cpMsg.style.color='#4ade80';}
+    else if(COUPON.info?.valid===false){cpMsg.textContent=COUPON.info.msg;cpMsg.style.color='#f87171';}
+    else{cpMsg.textContent='';}
+  }
   $('citems').innerHTML=CART.length?CART.map(item=>`
     <div class="cart-item">
       <div class="ci-thumb">${item.imageUrl?`<img src="${item.imageUrl}" onerror="this.style.display='none'">`:('')}</div>
@@ -1780,17 +1829,22 @@ function clearTimer(){if(_tID){clearInterval(_tID);_tID=null;}}
 function previewSlip(inp){if(!inp.files[0])return;const r=new FileReader();r.onload=e=>{const i=$('slipimg');if(i){i.src=e.target.result;i.style.display='block';}};r.readAsDataURL(inp.files[0]);}
 
 async function openCreditPayment(){
-  const{sub,vat,grand}=cartTotals();
+  const{sub,vat,grand,couponAmt}=cartTotals();
   const itemDesc=CART.map(x=>x.name+(x.qty>1?' x'+x.qty:'')).join(', ');
-  const orderData={orderNo:_docNo,date:todayISO(),customerName:O.name,customerPhone:O.phone,customerEmail:O.email||shopUser?.email||'',customerUid:shopUser?.uid||'',customerAddress:O.addr,note:O.note,payMethod:'credit',slipBase64:'',lang:LANG,items:CART.map(x=>({id:x.id,code:x.code,name:x.name,unit:x.unit,price:x.price,qty:x.qty,subtotal:x.price*x.qty,cost:(PRODS.find(p=>p.id===x.id)||{}).cost||0})),totalCost:CART.reduce((a,x)=>a+x.qty*(((PRODS.find(p=>p.id===x.id)||{}).cost)||0),0),subtotal:sub,vat,total:grand,status:'รอชำระบัตร'};
+  const orderData={orderNo:_docNo,date:todayISO(),customerName:O.name,customerPhone:O.phone,customerEmail:O.email||shopUser?.email||'',customerUid:shopUser?.uid||'',customerAddress:O.addr,note:O.note,payMethod:'credit',slipBase64:'',lang:LANG,
+    couponCode:COUPON.info?.valid?COUPON.info.code:null,couponDiscount:couponAmt||null,
+    items:CART.map(x=>({id:x.id,code:x.code,name:x.name,unit:x.unit,price:x.price,qty:x.qty,subtotal:x.price*x.qty,cost:(PRODS.find(p=>p.id===x.id)||{}).cost||0})),totalCost:CART.reduce((a,x)=>a+x.qty*(((PRODS.find(p=>p.id===x.id)||{}).cost)||0),0),subtotal:sub,vat,total:grand,status:'รอชำระบัตร'};
   try{
     const batch=db.batch();
     const oRef=db.collection('onlineOrders').doc();
     batch.set(oRef,{...orderData,createdAt:fts()});
     CART.forEach(item=>batch.update(db.collection('products').doc(item.id),{stock:inc(-item.qty)}));
     await batch.commit();
+    if(COUPON.info?.valid&&COUPON.info.docId){
+      db.collection('discountCodes').doc(COUPON.info.docId).update({used:true,usedAt:fts(),usedByOrder:_docNo}).catch(e=>console.warn('coupon mark:',e));
+    }
     CART.forEach(item=>{const p=PRODS.find(x=>x.id===item.id);if(p)p.stock-=item.qty;});
-    window._lastCart=[...CART];CART.length=0;updateCart();doFilter();
+    window._lastCart=[...CART];CART.length=0;COUPON={code:'',info:null};updateCart();doFilter();
     sendOrderEmails(orderData);
   }catch(e){toast('Error saving order: '+e.message,'err');return;}
   // Build pay.sn URL with pre-filled customer data
@@ -1870,18 +1924,24 @@ function sendOrderEmails(orderData){
 
 async function confirmPay(){
   clearTimer();
-  const{sub,vat,grand}=cartTotals();
+  const{sub,vat,grand,couponAmt}=cartTotals();
   let slipB64='';
   if(O.pay==='transfer'){const f=$('slipf')?.files[0];if(f)try{slipB64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result.slice(0,50000));r.onerror=rej;r.readAsDataURL(f);});}catch{}}
-  const orderData={orderNo:_docNo,date:todayISO(),customerName:O.name,customerPhone:O.phone,customerEmail:O.email||shopUser?.email||'',customerUid:shopUser?.uid||'',customerAddress:O.addr,note:O.note,payMethod:O.pay,slipBase64:slipB64,lang:LANG,items:CART.map(x=>({id:x.id,code:x.code,name:x.name,unit:x.unit,price:x.price,qty:x.qty,subtotal:x.price*x.qty,cost:(PRODS.find(p=>p.id===x.id)||{}).cost||0})),totalCost:CART.reduce((a,x)=>a+x.qty*(((PRODS.find(p=>p.id===x.id)||{}).cost)||0),0),subtotal:sub,vat,total:grand,status:'รอยืนยัน'};
+  const orderData={orderNo:_docNo,date:todayISO(),customerName:O.name,customerPhone:O.phone,customerEmail:O.email||shopUser?.email||'',customerUid:shopUser?.uid||'',customerAddress:O.addr,note:O.note,payMethod:O.pay,slipBase64:slipB64,lang:LANG,
+    couponCode:COUPON.info?.valid?COUPON.info.code:null,couponDiscount:couponAmt||null,
+    items:CART.map(x=>({id:x.id,code:x.code,name:x.name,unit:x.unit,price:x.price,qty:x.qty,subtotal:x.price*x.qty,cost:(PRODS.find(p=>p.id===x.id)||{}).cost||0})),totalCost:CART.reduce((a,x)=>a+x.qty*(((PRODS.find(p=>p.id===x.id)||{}).cost)||0),0),subtotal:sub,vat,total:grand,status:'รอยืนยัน'};
   try{
     const batch=db.batch();
     const oRef=db.collection('onlineOrders').doc();
     batch.set(oRef,{...orderData,createdAt:fts()});
     CART.forEach(item=>batch.update(db.collection('products').doc(item.id),{stock:inc(-item.qty)}));
     await batch.commit();
+    // mark coupon used
+    if(COUPON.info?.valid&&COUPON.info.docId){
+      db.collection('discountCodes').doc(COUPON.info.docId).update({used:true,usedAt:fts(),usedByOrder:_docNo}).catch(e=>console.warn('coupon mark:',e));
+    }
     CART.forEach(item=>{const p=PRODS.find(x=>x.id===item.id);if(p)p.stock-=item.qty;});
-    window._lastCart=[...CART];CART.length=0;updateCart();doFilter();O.step=4;renderSuccess(grand);
+    window._lastCart=[...CART];CART.length=0;COUPON={code:'',info:null};updateCart();doFilter();O.step=4;renderSuccess(grand);
     sendOrderEmails(orderData);
   }catch(e){toast('Error: '+e.message,'err');}
 }
