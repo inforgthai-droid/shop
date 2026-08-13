@@ -1938,6 +1938,10 @@ function sendOrderEmails(orderData){
     subtotal        : orderData.subtotal||0,
     vat             : orderData.vat||0,
     total           : orderData.total||0,
+    couponCode      : orderData.couponCode||null,
+    couponDiscount  : orderData.couponDiscount||null,
+    nextCouponCode  : orderData.nextCouponCode||null,
+    nextCouponExpiry: orderData.nextCouponExpiry||null,
   };
   fetch(MAIL_API,{
     method  : 'POST',
