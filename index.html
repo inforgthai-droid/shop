@@ -91,6 +91,13 @@ body{font-family:var(--thai);background:var(--bg);color:var(--text);min-height:1
 .login-btn{color:#888;background:none;border:1px solid #2a2a2a;padding:8px 14px;font-size:12px;cursor:pointer;font-family:var(--thai);transition:all .13s;white-space:nowrap}
 .login-btn:hover{border-color:var(--red);color:var(--red)}
 #hdr-user-area{display:flex;align-items:center;gap:8px}
+.user-menu-wrap{position:relative}
+.user-menu-btn{background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center}
+.user-dropdown{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#1e1e1e;border:1px solid #333;border-radius:12px;min-width:200px;padding:8px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.user-menu-wrap.open .user-dropdown{display:block}
+.user-dropdown-info{padding:6px 8px 4px}
+.user-dd-item{display:block;width:100%;text-align:left;background:none;border:none;color:#eee;font-family:'Sarabun',sans-serif;font-size:13px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s}
+.user-dd-item:hover{background:#2a2a2a}
 
 /* NAV */
 #nav{background:#111;border-bottom:1px solid #1e1e1e}
@@ -786,8 +793,26 @@ function updateUserUI(){
   const a=$('tb-user'),b=$('hdr-user-area');
   if(!a||!b)return;
   if(shopUser){
-    a.innerHTML=`<img src="${shopUser.photoURL||''}" style="width:20px;height:20px;border-radius:50%;border:1px solid var(--red)" onerror="this.style.display='none'"> <span style="font-size:11px;color:#bbb">${shopUser.displayName?.split(' ')[0]||shopUser.email}</span>`;
-    b.innerHTML='';
+    const name=shopUser.displayName?.split(' ')[0]||shopUser.email||'';
+    const photo=shopUser.photoURL||'';
+    a.innerHTML=`<img src="${photo}" style="width:20px;height:20px;border-radius:50%;border:1px solid var(--red)" onerror="this.style.display='none'"> <span style="font-size:11px;color:#bbb">${name}</span>`;
+    b.innerHTML=`
+      <div class="user-menu-wrap" onmouseenter="this.classList.add('open')" onmouseleave="this.classList.remove('open')">
+        <button class="user-menu-btn" onclick="this.parentElement.classList.toggle('open')">
+          <img src="${photo}" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--red);object-fit:cover" onerror="this.outerHTML='<span style=\'font-size:22px\'>👤</span>'">
+        </button>
+        <div class="user-dropdown">
+          <div class="user-dropdown-info">
+            <div style="font-weight:700;font-size:13px">${shopUser.displayName||name}</div>
+            <div style="font-size:11px;color:#aaa;margin-top:2px">${shopUser.email||''}</div>
+          </div>
+          <hr style="border:none;border-top:1px solid #333;margin:6px 0">
+          <button class="user-dd-item" onclick="openMyAccount()">👤 ${LANG==='th'?'บัญชีของฉัน':'My Account'}</button>
+          <button class="user-dd-item" onclick="openMyOrders()">📦 ${LANG==='th'?'การซื้อของฉัน':'My Orders'}</button>
+          <hr style="border:none;border-top:1px solid #333;margin:6px 0">
+          <button class="user-dd-item" style="color:#f87171" onclick="auth.signOut()">🚪 ${LANG==='th'?'ออกจากระบบ':'Sign Out'}</button>
+        </div>
+      </div>`;
     $('login-btn').textContent=t('logout');
   } else {
     a.innerHTML='';b.innerHTML='';
@@ -795,6 +820,97 @@ function updateUserUI(){
   }
 }
 function handleLogin(){shopUser?auth.signOut():auth.signInWithPopup(gp).then(()=>toast(LANG==='th'?'เข้าสู่ระบบสำเร็จ':'Signed in','ok')).catch(e=>toast(e.message,'err'));}
+
+// ===== USER ACCOUNT =====
+function openMyAccount(){
+  if(!shopUser) return;
+  const uid = shopUser.uid;
+  db.collection('customers').doc(uid).get().then(doc=>{
+    const d = doc.exists ? doc.data() : {};
+    openM(LANG==='th'?'บัญชีของฉัน':'My Account', `
+      <div style="display:flex;flex-direction:column;gap:10px;padding:4px 0">
+        <div>
+          <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">${LANG==='th'?'ชื่อ-นามสกุล':'Full Name'}</label>
+          <input id="acc-name" class="ci" value="${d.name||shopUser.displayName||''}" placeholder="${LANG==='th'?'ชื่อ-นามสกุล':'Full Name'}" style="width:100%;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">${LANG==='th'?'เบอร์ติดต่อ':'Phone'}</label>
+          <input id="acc-phone" class="ci" value="${d.phone||''}" placeholder="0XX-XXX-XXXX" style="width:100%;box-sizing:border-box">
+        </div>
+        <div>
+          <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">${LANG==='th'?'ที่อยู่จัดส่ง':'Shipping Address'}</label>
+          <textarea id="acc-addr" class="ci" rows="3" placeholder="${LANG==='th'?'บ้านเลขที่ ถนน ตำบล อำเภอ จังหวัด รหัสไปรษณีย์':'Address'}" style="width:100%;box-sizing:border-box;resize:vertical">${d.address||''}</textarea>
+        </div>
+        <div>
+          <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">Email</label>
+          <input class="ci" value="${shopUser.email||''}" disabled style="width:100%;box-sizing:border-box;opacity:.6">
+        </div>
+        <button onclick="saveMyAccount()" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:4px">
+          ${LANG==='th'?'💾 บันทึก':'💾 Save'}
+        </button>
+      </div>
+    `);
+  });
+}
+
+function saveMyAccount(){
+  if(!shopUser) return;
+  const name = document.getElementById('acc-name')?.value?.trim()||'';
+  const phone = document.getElementById('acc-phone')?.value?.trim()||'';
+  const address = document.getElementById('acc-addr')?.value?.trim()||'';
+  db.collection('customers').doc(shopUser.uid).set({
+    name, phone, address, email: shopUser.email||'', uid: shopUser.uid, updatedAt: new Date().toISOString()
+  },{merge:true}).then(()=>{
+    toast(LANG==='th'?'บันทึกสำเร็จ ✓':'Saved ✓','ok');
+    closeM();
+  }).catch(e=>toast(e.message,'err'));
+}
+
+function openMyOrders(){
+  if(!shopUser) return;
+  openM(LANG==='th'?'การซื้อของฉัน':'My Orders','<div style="text-align:center;padding:20px;color:#aaa">⏳ '+(LANG==='th'?'กำลังโหลด...':'Loading...')+'</div>');
+  db.collection('onlineOrders').where('customerUid','==',shopUser.uid).orderBy('createdAt','desc').limit(20).get().then(snap=>{
+    if(snap.empty){
+      document.getElementById('mb').innerHTML='<div style="text-align:center;padding:30px;color:#aaa;font-size:14px">📦 '+(LANG==='th'?'ยังไม่มีประวัติการสั่งซื้อ':'No orders yet')+'</div>';
+      return;
+    }
+    const STATUS_TH={รอยืนยัน:'🟡 รอยืนยัน',ยืนยันแล้ว:'🔵 ยืนยันแล้ว',กำลังจัดส่ง:'🟣 กำลังจัดส่ง',เสร็จสิ้น:'🟢 เสร็จสิ้น',ยกเลิก:'🔴 ยกเลิก'};
+    const STATUS_EN={รอยืนยัน:'🟡 Pending',ยืนยันแล้ว:'🔵 Confirmed',กำลังจัดส่ง:'🟣 Shipping',เสร็จสิ้น:'🟢 Completed',ยกเลิก:'🔴 Cancelled'};
+    let html='<div style="display:flex;flex-direction:column;gap:10px">';
+    snap.forEach(doc=>{
+      const o=doc.data();
+      const st=(LANG==='th'?STATUS_TH:STATUS_EN)[o.status]||o.status||'-';
+      const date=o.date||o.createdAt?.split('T')[0]||'-';
+      const items=(o.items||[]).map(i=>i.name).join(', ');
+      const tracking=o.trackingNo?`<div style="font-size:12px;color:#aaa;margin-top:4px">${LANG==='th'?'Tracking':'Tracking'}: <span style="color:#f87171">${o.trackingNo}</span></div>`:'';
+      html+=`<div style="background:#1e1e1e;border:1px solid #333;border-radius:10px;padding:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span style="font-weight:700;font-size:13px">${o.orderNo||doc.id}</span>
+          <span style="font-size:12px">${st}</span>
+        </div>
+        <div style="font-size:12px;color:#aaa">${date}</div>
+        <div style="font-size:13px;margin-top:4px;color:#ddd">${items}</div>
+        ${tracking}
+        <div style="font-weight:700;color:var(--red);margin-top:6px;font-size:15px">${fmtD(o.total||0)}</div>
+      </div>`;
+    });
+    html+='</div>';
+    document.getElementById('mb').innerHTML=html;
+  }).catch(e=>{document.getElementById('mb').innerHTML='<div style="color:#f87171;padding:12px">Error: '+e.message+'</div>';});
+}
+
+// Auto-fill checkout จากข้อมูลบัญชี
+function prefillFromAccount(){
+  if(!shopUser) return;
+  db.collection('customers').doc(shopUser.uid).get().then(doc=>{
+    if(!doc.exists) return;
+    const d=doc.data();
+    if(d.name && !O.name) O.name=d.name;
+    if(d.phone && !O.phone) O.phone=d.phone;
+    if(d.address && !O.addr) O.addr=d.address;
+  });
+}
+
 
 // ── Barcode Scanner support ──
 function shopScanKey(e, inp){
@@ -1721,7 +1837,7 @@ function openCheckout(){
       </div>`);
     return;
   }
-  O.name=shopUser.displayName||'';O.email=shopUser.email||'';_doCO();
+  O.name=shopUser.displayName||'';O.email=shopUser.email||'';prefillFromAccount();_doCO();
 }
 function shopLogin(){auth.signInWithPopup(gp).then(()=>toast(LANG==='th'?'เข้าสู่ระบบสำเร็จ':'Signed in','ok')).catch(e=>toast(e.message,'err'));}
 function _doCO(){O.step=1;O.pay='qr';$('cart').classList.remove('open');$('mt').textContent=t('order_info').toUpperCase();$('mb').innerHTML='';$('msk').classList.add('open');setTimeout(renderCO,50);}
