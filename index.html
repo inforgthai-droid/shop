@@ -93,7 +93,8 @@ body{font-family:var(--thai);background:var(--bg);color:var(--text);min-height:1
 #hdr-user-area{display:flex;align-items:center;gap:8px}
 .user-menu-wrap{position:relative}
 .user-menu-btn{background:none;border:none;cursor:pointer;padding:0;display:flex;align-items:center}
-.user-dropdown{display:none;position:absolute;right:0;top:calc(100% + 6px);background:#1e1e1e;border:1px solid #333;border-radius:12px;min-width:200px;padding:8px;z-index:9999;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.user-dropdown{display:none;position:absolute;right:0;top:100%;padding-top:8px;z-index:9999}
+.user-dropdown-inner{background:#1e1e1e;border:1px solid #333;border-radius:12px;min-width:200px;padding:8px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
 .user-menu-wrap.open .user-dropdown{display:block}
 .user-dropdown-info{padding:6px 8px 4px}
 .user-dd-item{display:block;width:100%;text-align:left;background:none;border:none;color:#eee;font-family:'Sarabun',sans-serif;font-size:13px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .15s}
@@ -801,7 +802,7 @@ function updateUserUI(){
         <button class="user-menu-btn" onclick="this.parentElement.classList.toggle('open')">
           <img src="${photo}" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--red);object-fit:cover" onerror="this.outerHTML='<span style=\'font-size:22px\'>👤</span>'">
         </button>
-        <div class="user-dropdown">
+        <div class="user-dropdown"><div class="user-dropdown-inner">
           <div class="user-dropdown-info">
             <div style="font-weight:700;font-size:13px">${shopUser.displayName||name}</div>
             <div style="font-size:11px;color:#aaa;margin-top:2px">${shopUser.email||''}</div>
@@ -811,7 +812,7 @@ function updateUserUI(){
           <button class="user-dd-item" onclick="openMyOrders()">📦 ${LANG==='th'?'การซื้อของฉัน':'My Orders'}</button>
           <hr style="border:none;border-top:1px solid #333;margin:6px 0">
           <button class="user-dd-item" style="color:#f87171" onclick="auth.signOut()">🚪 ${LANG==='th'?'ออกจากระบบ':'Sign Out'}</button>
-        </div>
+        </div></div>
       </div>`;
     $('login-btn').textContent=t('logout');
   } else {
