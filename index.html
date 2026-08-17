@@ -1706,7 +1706,7 @@ function openPD(id){
     return '<div class="pd-gallery-thumb'+(i===0?' on':'')+'" onclick="pdSetImg(this,\''+src.replace(/'/g,"\\'")+'\')"><img src="'+src+'"></div>';
   }).join('')+'</div>':'';
 
-  const _shareUrl='https://us-central1-thai-accounting-d3e6b.cloudfunctions.net/share?pid='+encodeURIComponent(p.id);
+  const _shareUrl='https://shop.racinggarage.net/p/'+encodeURIComponent(p.id)+'.html';
   const _shareTitle=p.name+' - Racing Garage';
   const _sharePrice=p.price?p.price.toLocaleString('th-TH')+' บาท':'';
   const _fbFeedUrl='https://www.facebook.com/sharer/sharer.php?u='+encodeURIComponent(_shareUrl);
