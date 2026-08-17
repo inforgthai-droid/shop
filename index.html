@@ -789,7 +789,7 @@ function applyLang(){
 }
 
 // ── AUTH ──
-auth.onAuthStateChanged(u=>{shopUser=u;updateUserUI();applyLang();});
+auth.onAuthStateChanged(u=>{shopUser=u;updateUserUI();applyLang();if(u) checkAndIssueWelcomeCoupon();});
 function updateUserUI(){
   const a=$('tb-user'),b=$('hdr-user-area');
   if(!a||!b)return;
@@ -845,6 +845,22 @@ function openMyAccount(){
         <div>
           <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">Email</label>
           <input class="ci" value="${shopUser.email||''}" disabled style="width:100%;box-sizing:border-box;opacity:.6">
+        \${(()=>{
+          const wc=d.welcomeCoupon;
+          if(!wc) return '';
+          const exp=d.welcomeCouponExpiry?(\`ใช้ได้ถึง \${d.welcomeCouponExpiry}\`):'ไม่มีวันหมดอายุ';
+          const used=d.welcomeCouponUsed;
+          return \`<div style="margin-top:8px">
+            <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">🎁 โค้ดต้อนรับ 5%</label>
+            <div style="background:#1a1a1a;border:2px dashed \${used?'#555':'var(--red)'};border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <span style="font-size:18px;font-weight:900;letter-spacing:3px;color:\${used?'#666':'#fff'};font-family:monospace;text-decoration:\${used?'line-through':'none'}">\${wc}</span>
+                <div style="font-size:11px;color:#888;margin-top:2px">\${used?(LANG==='th'?'ใช้แล้ว':'Used'):exp}</div>
+              </div>
+              \${!used?\`<button onclick="copyWelcomeCode('\${wc}')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif">📋 คัดลอก</button>\`:''}
+            </div>
+          </div>\`;
+        })()}
         </div>
         <button onclick="saveMyAccount()" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:4px">
           ${LANG==='th'?'💾 บันทึก':'💾 Save'}
@@ -911,6 +927,92 @@ function prefillFromAccount(){
     if(d.address && !O.addr) O.addr=d.address;
   });
 }
+
+// ===== WELCOME COUPON (First Order) =====
+async function checkAndIssueWelcomeCoupon(){
+  if(!shopUser) return;
+  const uid=shopUser.uid;
+  // โหลด settings ก่อน
+  const settSnap=await db.collection('settings').doc('company').get();
+  const sett=settSnap.exists?settSnap.data():{};
+  if(!sett.welcomeCouponEnabled) return; // ปิดอยู่
+  const limit=sett.welcomeCouponLimit||100;
+  const issued=sett.welcomeCouponIssued||0;
+  if(issued>=limit) return; // แจกครบแล้ว
+  // เช็ค customer doc
+  const custSnap=await db.collection('customers').doc(uid).get();
+  const cust=custSnap.exists?custSnap.data():{};
+  if(cust.welcomeCoupon) return; // แจกไปแล้ว
+  // เช็คว่าเคยสั่งซื้อไหม
+  const ordSnap=await db.collection('onlineOrders').where('customerUid','==',uid).limit(1).get();
+  if(!ordSnap.empty) return; // เคยสั่งแล้ว
+  // สร้างโค้ด
+  let code=_genCouponCode();
+  for(let i=0;i<5;i++){
+    const ex=await db.collection('discountCodes').where('code','==',code).limit(1).get();
+    if(ex.empty) break;
+    code=_genCouponCode();
+  }
+  const expDays=sett.welcomeCouponExpiry;
+  let expISO=null;
+  if(expDays>0){
+    const d=new Date();d.setDate(d.getDate()+expDays);
+    expISO=d.toISOString().split('T')[0];
+  }
+  // บันทึกโค้ดใน discountCodes
+  await db.collection('discountCodes').add({
+    code,discount:5,used:false,
+    expireDate:expISO,
+    type:'welcome',
+    issuedTo:uid,
+    issuedToEmail:shopUser.email||'',
+    createdAt:new Date().toISOString()
+  });
+  // บันทึกใน customer
+  await db.collection('customers').doc(uid).set({
+    welcomeCoupon:code,
+    welcomeCouponExpiry:expISO,
+    welcomeCouponUsed:false,
+    uid,email:shopUser.email||''
+  },{merge:true});
+  // อัปเดต counter
+  await db.collection('settings').doc('company').update({
+    welcomeCouponIssued: firebase.firestore.FieldValue.increment(1)
+  });
+  // แสดง popup
+  showWelcomeCouponPopup(code, expISO, expDays);
+}
+
+function showWelcomeCouponPopup(code, expISO, expDays){
+  const expText = expISO
+    ? (LANG==='th'?`ใช้ได้ถึง ${expISO}`:`Valid until ${expISO}`)
+    : (LANG==='th'?'ไม่มีวันหมดอายุ':'No expiry');
+  openM(
+    LANG==='th'?'🎁 ยินดีต้อนรับ!':'🎁 Welcome!',
+    `<div style="text-align:center;padding:8px 0">
+      <div style="font-size:15px;margin-bottom:16px;color:#ddd">
+        ${LANG==='th'
+          ?'ขอบคุณที่สมัครสมาชิก! นี่คือโค้ดส่วนลด <strong>5%</strong> สำหรับการสั่งซื้อครั้งแรกของคุณ'
+          :'Thank you for joining! Here's your <strong>5% off</strong> code for your first order'}
+      </div>
+      <div style="background:#1a1a1a;border:2px dashed var(--red);border-radius:12px;padding:20px;margin:12px 0">
+        <div style="font-size:28px;font-weight:900;letter-spacing:4px;color:#fff;font-family:monospace">${code}</div>
+        <div style="font-size:12px;color:#aaa;margin-top:8px">${expText}</div>
+      </div>
+      <button onclick="copyWelcomeCode('${code}')" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:4px">
+        📋 ${LANG==='th'?'คัดลอกโค้ด':'Copy Code'}
+      </button>
+      <div style="font-size:12px;color:#888;margin-top:12px">
+        ${LANG==='th'?'โค้ดนี้เห็นได้ใน "บัญชีของฉัน" ตลอดเวลา':'You can always find this code in "My Account"'}
+      </div>
+    </div>`
+  );
+}
+
+function copyWelcomeCode(code){
+  navigator.clipboard.writeText(code).then(()=>toast(LANG==='th'?'คัดลอกแล้ว ✓':'Copied ✓','ok'));
+}
+
 
 
 // ── Barcode Scanner support ──
