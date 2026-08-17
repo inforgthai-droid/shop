@@ -863,7 +863,7 @@ function openMyAccount(){
         <div>
           <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">Email</label>
           <input class="ci" value="${shopUser.email||''}" disabled style="width:100%;box-sizing:border-box;opacity:.6">
-        \${_renderWelcomeCoupon(d)}
+        ${_renderWelcomeCoupon(d)}
         </div>
         <button onclick="saveMyAccount()" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:4px">
           ${LANG==='th'?'💾 บันทึก':'💾 Save'}
