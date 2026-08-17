@@ -823,6 +823,24 @@ function updateUserUI(){
 function handleLogin(){shopUser?auth.signOut():auth.signInWithPopup(gp).then(()=>toast(LANG==='th'?'เข้าสู่ระบบสำเร็จ':'Signed in','ok')).catch(e=>toast(e.message,'err'));}
 
 // ===== USER ACCOUNT =====
+
+function _renderWelcomeCoupon(d){
+  const wc=d.welcomeCoupon;
+  if(!wc) return '';
+  const exp=d.welcomeCouponExpiry?('ใช้ได้ถึง '+d.welcomeCouponExpiry):'ไม่มีวันหมดอายุ';
+  const used=d.welcomeCouponUsed;
+  return '<div style="margin-top:8px">'+
+    '<label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">🎁 โค้ดต้อนรับ 5%</label>'+
+    '<div style="background:#1a1a1a;border:2px dashed '+(used?'#555':'var(--red)')+';border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between">'+
+      '<div>'+
+        '<span style="font-size:18px;font-weight:900;letter-spacing:3px;color:'+(used?'#666':'#fff')+';font-family:monospace;text-decoration:'+(used?'line-through':'none')+'">'+wc+'</span>'+
+        '<div style="font-size:11px;color:#888;margin-top:2px">'+(used?(LANG==="th"?'ใช้แล้ว':'Used'):exp)+'</div>'+
+      '</div>'+
+      (!used?'<button onclick="copyWelcomeCode(\''+wc+'\')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:\'Sarabun\',sans-serif">📋 คัดลอก</button>':'')+
+    '</div>'+
+  '</div>';
+}
+
 function openMyAccount(){
   if(!shopUser) return;
   const uid = shopUser.uid;
@@ -845,22 +863,7 @@ function openMyAccount(){
         <div>
           <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">Email</label>
           <input class="ci" value="${shopUser.email||''}" disabled style="width:100%;box-sizing:border-box;opacity:.6">
-        \${(()=>{
-          const wc=d.welcomeCoupon;
-          if(!wc) return '';
-          const exp=d.welcomeCouponExpiry?(\`ใช้ได้ถึง \${d.welcomeCouponExpiry}\`):'ไม่มีวันหมดอายุ';
-          const used=d.welcomeCouponUsed;
-          return \`<div style="margin-top:8px">
-            <label style="font-size:12px;color:#aaa;display:block;margin-bottom:4px">🎁 โค้ดต้อนรับ 5%</label>
-            <div style="background:#1a1a1a;border:2px dashed \${used?'#555':'var(--red)'};border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between">
-              <div>
-                <span style="font-size:18px;font-weight:900;letter-spacing:3px;color:\${used?'#666':'#fff'};font-family:monospace;text-decoration:\${used?'line-through':'none'}">\${wc}</span>
-                <div style="font-size:11px;color:#888;margin-top:2px">\${used?(LANG==='th'?'ใช้แล้ว':'Used'):exp}</div>
-              </div>
-              \${!used?\`<button onclick="copyWelcomeCode('\${wc}')" style="background:none;border:1px solid var(--red);color:var(--red);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:'Sarabun',sans-serif">📋 คัดลอก</button>\`:''}
-            </div>
-          </div>\`;
-        })()}
+        \${_renderWelcomeCoupon(d)}
         </div>
         <button onclick="saveMyAccount()" style="background:var(--red);color:#fff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:700;cursor:pointer;font-family:'Sarabun',sans-serif;margin-top:4px">
           ${LANG==='th'?'💾 บันทึก':'💾 Save'}
