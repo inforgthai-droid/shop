@@ -932,6 +932,29 @@ function prefillFromAccount(){
 }
 
 // ===== WELCOME COUPON (First Order) =====
+async function _earnOnlinePoints(orderId, amount){
+  if(!shopUser) return;
+  const uid=shopUser.uid;
+  // หา memberId จาก customer doc
+  const custSnap=await db.collection('customers').doc(uid).get();
+  const memberId=custSnap.data()?.memberId;
+  if(!memberId) return;
+  // คำนวณคะแนน 100บาท = 1pt
+  const pts=Math.floor(amount/100);
+  if(pts<=0) return;
+  // expire 3 เดือน
+  const exp=new Date();exp.setMonth(exp.getMonth()+3);
+  const expISO=exp.toISOString().split('T')[0];
+  await db.collection('pointTransactions').add({
+    memberId,saleId:orderId,points:pts,type:'earn',
+    used:false,expireAt:expISO,multiplier:1,
+    source:'online',createdAt:new Date().toISOString()
+  });
+  await db.collection('members').doc(memberId).update({
+    totalPointsEarned:firebase.firestore.FieldValue.increment(pts)
+  });
+}
+
 async function checkAndCreateMember(){
   if(!shopUser) return;
   const uid=shopUser.uid;
@@ -2155,6 +2178,7 @@ async function openCreditPayment(){
     if(COUPON.info?.valid&&COUPON.info.docId){
       db.collection('discountCodes').doc(COUPON.info.docId).update({used:true,usedAt:fts(),usedByOrder:_docNo}).catch(e=>console.warn('coupon mark:',e));
     }
+    _earnOnlinePoints(oRef.id, grand).catch(e=>console.warn('earn points warn:',e));
     CART.forEach(item=>{const p=PRODS.find(x=>x.id===item.id);if(p)p.stock-=item.qty;});
     window._lastCart=[...CART];CART.length=0;COUPON={code:'',info:null};updateCart();doFilter();
     sendOrderEmails(orderData);
@@ -2260,6 +2284,7 @@ async function confirmPay(){
     if(COUPON.info?.valid&&COUPON.info.docId){
       db.collection('discountCodes').doc(COUPON.info.docId).update({used:true,usedAt:fts(),usedByOrder:_docNo}).catch(e=>console.warn('coupon mark:',e));
     }
+    _earnOnlinePoints(oRef.id, grand).catch(e=>console.warn('earn points warn:',e));
     CART.forEach(item=>{const p=PRODS.find(x=>x.id===item.id);if(p)p.stock-=item.qty;});
     window._lastCart=[...CART];CART.length=0;COUPON={code:'',info:null};updateCart();doFilter();O.step=4;renderSuccess(grand);
     sendOrderEmails(orderData);
