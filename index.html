@@ -958,9 +958,21 @@ async function _earnOnlinePoints(orderId, amount){
 async function checkAndCreateMember(){
   if(!shopUser) return;
   const uid=shopUser.uid;
+  // เช็ค customer doc ก่อนว่ามี memberId แล้วหรือยัง
+  const custSnap=await db.collection('customers').doc(uid).get();
+  const existingMemberId=custSnap.data()?.memberId;
+  if(existingMemberId){
+    // มี memberId แล้ว ตรวจว่า member doc ยังอยู่จริง
+    const mSnap=await db.collection('members').doc(existingMemberId).get();
+    if(mSnap.exists) return; // ครบแล้ว ไม่ต้องทำอะไร
+  }
   // เช็คว่ามี member ที่ผูก uid นี้ไว้แล้วไหม
   const snap=await db.collection('members').where('uid','==',uid).limit(1).get();
-  if(!snap.empty) return; // มีแล้ว ไม่ต้องทำอะไร
+  if(!snap.empty){
+    // พบ member เดิม → อัปเดต customer doc ให้ชี้ไป
+    await db.collection('customers').doc(uid).set({memberId:snap.docs[0].id},{merge:true});
+    return;
+  }
   // สร้าง member ใหม่ด้วยข้อมูลจาก Google (ยังไม่มีเบอร์)
   const docRef=await db.collection('members').add({
     name:shopUser.displayName||shopUser.email||'สมาชิก',
@@ -1007,12 +1019,29 @@ async function saveMemberPhone(memberId){
   const phone=document.getElementById('member-phone-input')?.value?.trim().replace(/\D/g,'');
   const errEl=document.getElementById('member-phone-err');
   if(!phone||phone.length<9){if(errEl)errEl.textContent=LANG==='th'?'กรุณากรอกเบอร์ให้ครบ':'Please enter a valid phone number';return;}
-  // ตรวจซ้ำ
+  // ตรวจว่าเบอร์นี้มีอยู่ในระบบแล้วไหม
   const ex=await db.collection('members').where('phone','==',phone).limit(1).get();
-  if(!ex.empty&&ex.docs[0].id!==memberId){if(errEl)errEl.textContent=LANG==='th'?'เบอร์นี้ถูกใช้แล้ว':'Phone already in use';return;}
+  if(!ex.empty&&ex.docs[0].id!==memberId){
+    // เบอร์นี้เป็นของ member เดิม (สมัครที่หน้าร้าน) → รวม member
+    const existingId=ex.docs[0].id;
+    const uid=shopUser?.uid;
+    if(uid){
+      // ผูก uid กับ member เดิม และลบ member ใหม่ที่สร้างชั่วคราว
+      await db.collection('members').doc(existingId).update({uid,email:shopUser.email||''});
+      await db.collection('customers').doc(uid).set({memberId:existingId},{merge:true});
+      // ลบ member ใหม่ที่สร้างไว้ชั่วคราว (ยังไม่มีคะแนน)
+      await db.collection('members').doc(memberId).delete();
+    }
+    closeM();
+    const t=document.createElement('div');
+    t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 20px;border-radius:8px;font-weight:700;z-index:9999;font-size:14px';
+    t.textContent=LANG==='th'?'✓ เชื่อมบัญชีสมาชิกเดิมสำเร็จ! คะแนนสะสมของคุณยังครบ':'✓ Linked to existing membership! Your points are intact.';
+    document.body.appendChild(t);setTimeout(()=>t.remove(),4000);
+    return;
+  }
+  // เบอร์ใหม่ → บันทึกลง member ที่สร้างไว้
   await db.collection('members').doc(memberId).update({phone});
   closeM();
-  // แสดงแจ้งเตือนสั้น
   const t=document.createElement('div');
   t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 20px;border-radius:8px;font-weight:700;z-index:9999;font-size:14px';
   t.textContent=LANG==='th'?'✓ บันทึกเบอร์สำเร็จ ยินดีต้อนรับสู่ระบบสมาชิก!':'✓ Phone saved! Welcome to our membership!';
