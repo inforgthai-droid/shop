@@ -789,7 +789,7 @@ function applyLang(){
 }
 
 // ── AUTH ──
-auth.onAuthStateChanged(u=>{shopUser=u;updateUserUI();applyLang();if(u) checkAndIssueWelcomeCoupon();});
+auth.onAuthStateChanged(u=>{shopUser=u;updateUserUI();applyLang();if(u){checkAndIssueWelcomeCoupon();checkAndCreateMember();}});
 function updateUserUI(){
   const a=$('tb-user'),b=$('hdr-user-area');
   if(!a||!b)return;
@@ -932,6 +932,63 @@ function prefillFromAccount(){
 }
 
 // ===== WELCOME COUPON (First Order) =====
+async function checkAndCreateMember(){
+  if(!shopUser) return;
+  const uid=shopUser.uid;
+  // เช็คว่ามี member ที่ผูก uid นี้ไว้แล้วไหม
+  const snap=await db.collection('members').where('uid','==',uid).limit(1).get();
+  if(!snap.empty) return; // มีแล้ว ไม่ต้องทำอะไร
+  // สร้าง member ใหม่ด้วยข้อมูลจาก Google (ยังไม่มีเบอร์)
+  const docRef=await db.collection('members').add({
+    name:shopUser.displayName||shopUser.email||'สมาชิก',
+    email:shopUser.email||'',
+    phone:'',
+    uid,
+    source:'shop',
+    createdAt:new Date().toISOString(),
+    totalPointsEarned:0
+  });
+  // บันทึก memberId ใน customer doc ด้วย
+  await db.collection('customers').doc(uid).set({memberId:docRef.id},{merge:true});
+  // แสดง popup ขอเบอร์โทร
+  showMemberPhonePopup(docRef.id);
+}
+
+function showMemberPhonePopup(memberId){
+  // ไม่แสดงซ้ำถ้าปิดไปแล้ว
+  const key='memberPhoneAsked_'+memberId;
+  if(sessionStorage.getItem(key)) return;
+  sessionStorage.setItem(key,'1');
+  openM(
+    LANG==='th'?'🎉 สมัครสมาชิกสำเร็จ!':'🎉 Membership Created!',
+    `<div style="text-align:center">
+      <div style="font-size:40px;margin-bottom:8px">👤</div>
+      <p style="margin:0 0 12px">${LANG==='th'?'ยินดีต้อนรับสู่ระบบสมาชิก Racing Garage!<br>กรอกเบอร์โทรเพื่อสะสมคะแนน':'Welcome to Racing Garage membership!<br>Add your phone number to earn points'}</p>
+      <input id="member-phone-input" type="tel" maxlength="10" placeholder="0XXXXXXXXX"
+        style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:16px;text-align:center;font-family:inherit;box-sizing:border-box;margin-bottom:4px">
+      <div id="member-phone-err" style="color:#dc2626;font-size:12px;min-height:18px"></div>
+      <button onclick="saveMemberPhone('${memberId}')" style="background:#e8172c;color:#fff;border:none;padding:10px 28px;border-radius:8px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;width:100%;margin-top:8px">${LANG==='th'?'บันทึกเบอร์โทร':'Save Phone'}</button>
+      <div style="text-align:center;margin-top:8px"><a href="#" onclick="closeM();return false" style="font-size:13px;color:#aaa">${LANG==='th'?'ข้ามก่อน (กรอกภายหลังได้)':'Skip for now'}</a></div>
+    </div>`
+  );
+}
+
+async function saveMemberPhone(memberId){
+  const phone=document.getElementById('member-phone-input')?.value?.trim().replace(/\D/g,'');
+  const errEl=document.getElementById('member-phone-err');
+  if(!phone||phone.length<9){if(errEl)errEl.textContent=LANG==='th'?'กรุณากรอกเบอร์ให้ครบ':'Please enter a valid phone number';return;}
+  // ตรวจซ้ำ
+  const ex=await db.collection('members').where('phone','==',phone).limit(1).get();
+  if(!ex.empty&&ex.docs[0].id!==memberId){if(errEl)errEl.textContent=LANG==='th'?'เบอร์นี้ถูกใช้แล้ว':'Phone already in use';return;}
+  await db.collection('members').doc(memberId).update({phone});
+  closeM();
+  // แสดงแจ้งเตือนสั้น
+  const t=document.createElement('div');
+  t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#16a34a;color:#fff;padding:10px 20px;border-radius:8px;font-weight:700;z-index:9999;font-size:14px';
+  t.textContent=LANG==='th'?'✓ บันทึกเบอร์สำเร็จ ยินดีต้อนรับสู่ระบบสมาชิก!':'✓ Phone saved! Welcome to our membership!';
+  document.body.appendChild(t);setTimeout(()=>t.remove(),3000);
+}
+
 async function checkAndIssueWelcomeCoupon(){
   if(!shopUser) return;
   const uid=shopUser.uid;
