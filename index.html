@@ -963,7 +963,14 @@ function showMemberPhonePopup(memberId){
     LANG==='th'?'🎉 สมัครสมาชิกสำเร็จ!':'🎉 Membership Created!',
     `<div style="text-align:center">
       <div style="font-size:40px;margin-bottom:8px">👤</div>
-      <p style="margin:0 0 12px">${LANG==='th'?'ยินดีต้อนรับสู่ระบบสมาชิก Racing Garage!<br>กรอกเบอร์โทรเพื่อสะสมคะแนน':'Welcome to Racing Garage membership!<br>Add your phone number to earn points'}</p>
+      <p style="margin:0 0 12px;line-height:1.7">
+        Welcome to Racing Garage membership!<br>
+        Add your phone number to earn points<br>
+        <span style="display:block;margin-top:6px;color:#aaa;font-size:13px">ยินดีต้อนรับสู่สมาชิก Racing Garage!<br>
+        ระบุหมายเลขโทรศัพท์ของคุณเพื่อสะสมคะแนน<br>
+        ซื้อสินค้าครบทุก 100 บาท รับ 1 คะแนน<br>
+        1 คะแนน = 1 บาท | ครบ 100 คะแนน ใช้เป็นส่วนลดได้เลย</span>
+      </p>
       <input id="member-phone-input" type="tel" maxlength="10" placeholder="0XXXXXXXXX"
         style="width:100%;padding:10px;border:1.5px solid #e5e7eb;border-radius:8px;font-size:16px;text-align:center;font-family:inherit;box-sizing:border-box;margin-bottom:4px">
       <div id="member-phone-err" style="color:#dc2626;font-size:12px;min-height:18px"></div>
