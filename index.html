@@ -1400,7 +1400,8 @@ function applyBrand(){
 // ── NAV ──
 function buildNav(){
   // ใช้ CATS จาก Firestore (มี icon, color, order) ถ้าไม่มีใช้จาก products
-  const cats=CATS.length?CATS:[...new Set(PRODS.map(p=>p.category).filter(Boolean))].sort().map(n=>({name:n,icon:CAT_ICONS[n]||'?',color:'#0ea5e9'}));
+  let cats=CATS.length?CATS:[...new Set(PRODS.map(p=>p.category).filter(Boolean))].sort().map(n=>({name:n,icon:CAT_ICONS[n]||'?',color:'#0ea5e9'}));
+  const _ns=new Set();cats=cats.filter(c=>{if(_ns.has(c.name))return false;_ns.add(c.name);return true;});
   $('nav-inner').innerHTML=`<button class="nav-btn${CAT==='all'?' on':''}" onclick="setcat('all',this)">${t('all')}</button>`
     +cats.map(c=>`<button class="nav-btn${CAT===c.name?' on':''}" onclick="setcat('${c.name}',this)" style="${CAT===c.name?'border-color:'+c.color+';color:'+c.color:''}">${c.name}</button>`).join('');
 }
@@ -1494,7 +1495,8 @@ function setcat(c,el){
 // ── SIDEBAR ──
 function buildSidebar(){
   // ใช้ CATS จาก Firestore ถ้ามี
-  const cats=CATS.length?CATS:[...new Set(PRODS.map(p=>p.category).filter(Boolean))].sort().map(n=>({name:n,icon:CAT_ICONS[n]||'?',color:'#0ea5e9'}));
+  let cats=CATS.length?CATS:[...new Set(PRODS.map(p=>p.category).filter(Boolean))].sort().map(n=>({name:n,icon:CAT_ICONS[n]||'?',color:'#0ea5e9'}));
+  const _ss=new Set();cats=cats.filter(c=>{if(_ss.has(c.name))return false;_ss.add(c.name);return true;});
   const catCounts={};PRODS.forEach(p=>{if(p.category)catCounts[p.category]=(catCounts[p.category]||0)+1;});
   $('sb-cats').innerHTML=cats.map(c=>`
     <div class="sb-item${CAT===c.name?' on':''}" onclick="setcat('${c.name}',null)">
