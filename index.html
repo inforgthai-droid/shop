@@ -1413,7 +1413,11 @@ function buildCatHeroGrid(){
   if(wrap) wrap.style.display=enabled?'':'none';
   if(!enabled) return;
   const heroImgs=SD.catHeroImages||{};
-  const cats=CATS.length?CATS.slice(0,12):[...new Set(PRODS.map(p=>p.category).filter(Boolean))].slice(0,12).map(n=>({name:n,icon:CAT_ICONS[n]||'📦',color:'#e11d48',image:''}));
+  let cats=CATS.length?CATS:[...new Set(PRODS.map(p=>p.category).filter(Boolean))].map(n=>({name:n,icon:CAT_ICONS[n]||'📦',color:'#e11d48',image:''}));
+  // deduplicate by name (keep first occurrence)
+  const _seen=new Set();cats=cats.filter(c=>{if(_seen.has(c.name))return false;_seen.add(c.name);return true;});
+  // only show cats that have an image
+  cats=cats.filter(c=>(heroImgs[c.name]||c.image||c.imageUrl||'')).slice(0,12);
   grid.innerHTML=cats.map(c=>{
     const count=PRODS.filter(p=>p.category===c.name&&p.stock>0).length;
     // ใช้รูปจาก catHeroImages ก่อน แล้วค่อย fallback ไป c.image
